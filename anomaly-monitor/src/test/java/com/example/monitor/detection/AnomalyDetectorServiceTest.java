@@ -1,14 +1,13 @@
 package com.example.monitor.detection;
 
 import com.example.monitor.persistence.AnomalyEventEntity;
-import com.example.monitor.persistence.AnomalyEventRepository;
+import com.example.monitor.persistence.UnsupportedAnomalyEventRepository;
 import com.example.monitor.simulator.DeviceSimulatorService;
 import com.example.monitor.simulator.SensorReading;
 import com.example.monitor.simulator.SimulatorProperties;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
@@ -40,7 +39,7 @@ class AnomalyDetectorServiceTest {
         upstream = Sinks.many().multicast().onBackpressureBuffer();
         repository = new RecordingAnomalyEventRepository();
 
-        SimulatorProperties simulatorProperties = new SimulatorProperties(50.0, 5.0, 0.03, 40.0, 100, 65536);
+        SimulatorProperties simulatorProperties = new SimulatorProperties(50.0, 5.0, 0.03, 40.0, 100, 20000, 65536);
         DeviceSimulatorService fakeSimulator = new DeviceSimulatorService(simulatorProperties, new SimpleMeterRegistry()) {
             @Override
             public Flux<SensorReading> readingsStream() {
@@ -111,7 +110,7 @@ class AnomalyDetectorServiceTest {
     }
 
     /** save()만 실제로 동작하고 나머지는 이 테스트에서 쓰이지 않는 최소 fake. */
-    private static class RecordingAnomalyEventRepository implements AnomalyEventRepository {
+    private static class RecordingAnomalyEventRepository extends UnsupportedAnomalyEventRepository {
 
         final List<AnomalyEventEntity> saved = new CopyOnWriteArrayList<>();
 
@@ -119,101 +118,6 @@ class AnomalyDetectorServiceTest {
         public <S extends AnomalyEventEntity> Mono<S> save(S entity) {
             saved.add(entity);
             return Mono.just(entity);
-        }
-
-        @Override
-        public Flux<AnomalyEventEntity> findAllByOrderByDetectedAtDesc() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Flux<AnomalyEventEntity> findByDeviceIdOrderByDetectedAtDesc(String deviceId) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public <S extends AnomalyEventEntity> Flux<S> saveAll(Iterable<S> entities) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public <S extends AnomalyEventEntity> Flux<S> saveAll(Publisher<S> entityStream) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Mono<AnomalyEventEntity> findById(Long id) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Mono<AnomalyEventEntity> findById(Publisher<Long> id) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Mono<Boolean> existsById(Long id) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Mono<Boolean> existsById(Publisher<Long> id) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Flux<AnomalyEventEntity> findAll() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Flux<AnomalyEventEntity> findAllById(Iterable<Long> ids) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Flux<AnomalyEventEntity> findAllById(Publisher<Long> idStream) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Mono<Long> count() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Mono<Void> deleteById(Long id) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Mono<Void> deleteById(Publisher<Long> id) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Mono<Void> delete(AnomalyEventEntity entity) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Mono<Void> deleteAllById(Iterable<? extends Long> ids) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Mono<Void> deleteAll(Iterable<? extends AnomalyEventEntity> entities) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Mono<Void> deleteAll(Publisher<? extends AnomalyEventEntity> entityStream) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Mono<Void> deleteAll() {
-            throw new UnsupportedOperationException();
         }
     }
 }

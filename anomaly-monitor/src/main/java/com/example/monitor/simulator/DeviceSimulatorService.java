@@ -52,7 +52,7 @@ public class DeviceSimulatorService {
     }
 
     public int setDeviceCount(int newCount) {
-        int clamped = Math.max(0, newCount);
+        int clamped = Math.min(Math.max(0, newCount), properties.maxDeviceCount());
         deviceCount.set(clamped);
         return clamped;
     }

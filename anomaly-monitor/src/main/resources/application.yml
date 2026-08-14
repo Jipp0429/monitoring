@@ -18,6 +18,7 @@ monitor:
     anomaly-probability: 0.03      # 매 판독값이 이상치로 튈 확률
     anomaly-magnitude: 40.0
     initial-device-count: 100
+    max-device-count: 20000        # 스케일 API로 넣을 수 있는 상한
     sink-buffer-size: 65536        # 기본값(256)으로는 디바이스 수가 많을 때 이벤트가 드롭된다
   detection:
     z-score-threshold: 3.0

@@ -11,7 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DeviceSimulatorServiceTest {
 
     private static SimulatorProperties defaultProperties() {
-        return new SimulatorProperties(50.0, 5.0, 0.03, 40.0, 100, 65536);
+        return new SimulatorProperties(50.0, 5.0, 0.03, 40.0, 100, 20000, 65536);
     }
 
     private static DeviceSimulatorService newService(SimulatorProperties properties) {
@@ -43,6 +43,14 @@ class DeviceSimulatorServiceTest {
 
         assertThat(service.setDeviceCount(250)).isEqualTo(250);
         assertThat(service.getDeviceCount()).isEqualTo(250);
+    }
+
+    @Test
+    void setDeviceCountClampsAboveMaxToConfiguredCeiling() {
+        DeviceSimulatorService service = newService(defaultProperties());
+
+        assertThat(service.setDeviceCount(999_999)).isEqualTo(20000);
+        assertThat(service.getDeviceCount()).isEqualTo(20000);
     }
 
     @Test

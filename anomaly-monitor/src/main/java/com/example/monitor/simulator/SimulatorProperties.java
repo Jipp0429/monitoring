@@ -10,6 +10,9 @@ public record SimulatorProperties(
         @DefaultValue("0.03") double anomalyProbability,
         @DefaultValue("40.0") double anomalyMagnitude,
         @DefaultValue("100") int initialDeviceCount,
+        // 스케일 API(PUT /api/devices/scale)로 무제한 값을 넣을 수 있으면 리소스 고갈로 이어질 수 있으므로 상한을 둔다.
+        // 5000대까지는 부하 테스트로 정상 확장을 확인했다.
+        @DefaultValue("20000") int maxDeviceCount,
         // 디바이스 수가 수천 대로 늘어나면 한 tick에서 수천 개 이벤트가 한꺼번에 쏟아진다.
         // 기본 버퍼(256, Queues.SMALL_BUFFER_SIZE)로는 그 버스트를 못 받아내고
         // tryEmitNext()가 조용히 실패해 이벤트가 드롭되므로 넉넉하게 잡는다.
