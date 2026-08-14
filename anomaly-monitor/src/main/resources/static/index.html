@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>실시간 멀티 디바이스 모니터링</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #171d2b;
+    --border: #2a3244;
+    --text: #e2e8f0;
+    --muted: #8896ab;
+    --ok: #35d07f;
+    --bad: #ff5d5d;
+    --accent: #4f8cff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  #status { font-size: 12px; color: var(--muted); }
+  #status.connected { color: var(--ok); }
+  #status.disconnected { color: var(--bad); }
+
+  .controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 12px 20px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .controls label { font-size: 13px; color: var(--muted); }
+  .controls input[type=number] {
+    width: 90px;
+    padding: 6px 8px;
+    background: #0f1420;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+  }
+  .controls button {
+    padding: 6px 14px;
+    background: var(--accent);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .controls button:hover { opacity: 0.9; }
+  .metrics { display: flex; gap: 18px; margin-left: auto; font-size: 13px; color: var(--muted); }
+  .metrics b { color: var(--text); }
+
+  main { display: grid; grid-template-columns: 1fr 340px; gap: 16px; padding: 16px 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .panel h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    margin: 0;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .table-filters {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    font-weight: 400;
+  }
+  .table-filters input[type=text] {
+    width: 160px;
+    padding: 4px 8px;
+    background: #0f1420;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 12px;
+  }
+  .table-filters label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    text-align: left;
+    padding: 8px 12px;
+    color: var(--muted);
+    font-weight: 500;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel);
+  }
+  tbody td { padding: 6px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  tbody tr.anomaly { background: rgba(255, 93, 93, 0.12); }
+  tbody tr.anomaly td.value { color: var(--bad); font-weight: 700; }
+  .device-table-wrap { max-height: 70vh; overflow-y: auto; }
+
+  #anomalyLog { max-height: 70vh; overflow-y: auto; }
+  #anomalyLog .entry {
+    padding: 8px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 12px;
+  }
+  #anomalyLog .entry .dev { color: var(--accent); font-weight: 600; }
+  #anomalyLog .entry .z { color: var(--bad); font-weight: 700; }
+  #anomalyLog .entry .ts { color: var(--muted); float: right; }
+  .badge {
+    display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px;
+  }
+  .badge.ok { background: rgba(53,208,127,0.15); color: var(--ok); }
+  .badge.bad { background: rgba(255,93,93,0.2); color: var(--bad); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>실시간 멀티 디바이스 모니터링 · Welford Z-score 이상 탐지</h1>
+  <span id="status" class="disconnected">연결 대기중...</span>
+</header>
+
+<div class="controls">
+  <label for="deviceCount">디바이스 수</label>
+  <input type="number" id="deviceCount" min="0" step="10" value="100">
+  <button id="scaleBtn">적용</button>
+  <div class="metrics">
+    <span>디바이스: <b id="mDevices">-</b></span>
+    <span>초당 이벤트: <b id="mRate">0</b></span>
+    <span>이상치 누적: <b id="mAnomalies">0</b></span>
+  </div>
+</div>
+
+<main>
+  <div class="panel">
+    <h2>
+      디바이스별 최신 상태
+      <div class="table-filters">
+        <input type="text" id="deviceSearch" placeholder="디바이스 검색 (예: device-42)">
+        <label><input type="checkbox" id="anomalyOnlyToggle"> 이상치만 보기</label>
+      </div>
+    </h2>
+    <div class="device-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Device</th><th>Value</th><th>Mean</th><th>StdDev</th><th>Z-score</th><th>상태</th>
+          </tr>
+        </thead>
+        <tbody id="deviceRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>이상치 로그 (|z| &gt; 3)</h2>
+    <div id="anomalyLog"></div>
+  </div>
+</main>
+
+<script>
+  const deviceRows = document.getElementById('deviceRows');
+  const anomalyLog = document.getElementById('anomalyLog');
+  const statusEl = document.getElementById('status');
+  const mDevices = document.getElementById('mDevices');
+  const mRate = document.getElementById('mRate');
+  const mAnomalies = document.getElementById('mAnomalies');
+  const deviceSearchInput = document.getElementById('deviceSearch');
+  const anomalyOnlyToggle = document.getElementById('anomalyOnlyToggle');
+
+  const rowsByDevice = new Map();
+  let eventCountSinceLastTick = 0;
+  let anomalyCount = 0;
+  const MAX_LOG_ENTRIES = 200;
+
+  function fmt(n) { return Number(n).toFixed(2); }
+
+  function rowMatchesFilter(row) {
+    const searchTerm = deviceSearchInput.value.trim().toLowerCase();
+    if (anomalyOnlyToggle.checked && !row.classList.contains('anomaly')) return false;
+    if (searchTerm && !row.querySelector('.dev').textContent.toLowerCase().includes(searchTerm)) return false;
+    return true;
+  }
+
+  function applyRowFilter(row) {
+    row.style.display = rowMatchesFilter(row) ? '' : 'none';
+  }
+
+  function applyFilterToAllRows() {
+    rowsByDevice.forEach(applyRowFilter);
+  }
+
+  deviceSearchInput.addEventListener('input', applyFilterToAllRows);
+  anomalyOnlyToggle.addEventListener('change', applyFilterToAllRows);
+
+  function upsertRow(r) {
+    let row = rowsByDevice.get(r.deviceId);
+    if (!row) {
+      row = document.createElement('tr');
+      row.innerHTML = `<td class="dev"></td><td class="value"></td><td class="mean"></td><td class="std"></td><td class="z"></td><td class="state"></td>`;
+      rowsByDevice.set(r.deviceId, row);
+      deviceRows.appendChild(row);
+    }
+    row.classList.toggle('anomaly', r.anomaly);
+    row.querySelector('.dev').textContent = r.deviceId;
+    row.querySelector('.value').textContent = fmt(r.value);
+    row.querySelector('.mean').textContent = fmt(r.mean);
+    row.querySelector('.std').textContent = fmt(r.stdDev);
+    row.querySelector('.z').textContent = fmt(r.zScore);
+    row.querySelector('.state').innerHTML = r.anomaly
+      ? '<span class="badge bad">ANOMALY</span>'
+      : '<span class="badge ok">OK</span>';
+    applyRowFilter(row);
+  }
+
+  function logAnomaly(r) {
+    const entry = document.createElement('div');
+    entry.className = 'entry';
+    const time = new Date(r.timestamp).toLocaleTimeString();
+    entry.innerHTML = `<span class="ts">${time}</span><span class="dev">${r.deviceId}</span> value=${fmt(r.value)} z=<span class="z">${fmt(r.zScore)}</span>`;
+    anomalyLog.prepend(entry);
+    while (anomalyLog.children.length > MAX_LOG_ENTRIES) {
+      anomalyLog.removeChild(anomalyLog.lastChild);
+    }
+  }
+
+  function connect() {
+    const es = new EventSource('/api/stream/readings');
+
+    es.onopen = () => {
+      statusEl.textContent = '연결됨';
+      statusEl.className = 'connected';
+    };
+
+    es.onmessage = (event) => {
+      const r = JSON.parse(event.data);
+      eventCountSinceLastTick++;
+      upsertRow(r);
+      if (r.anomaly) {
+        anomalyCount++;
+        mAnomalies.textContent = anomalyCount;
+        logAnomaly(r);
+      }
+    };
+
+    es.onerror = () => {
+      statusEl.textContent = '연결 끊김 · 재시도중...';
+      statusEl.className = 'disconnected';
+    };
+  }
+
+  setInterval(() => {
+    mRate.textContent = eventCountSinceLastTick;
+    eventCountSinceLastTick = 0;
+  }, 1000);
+
+  async function refreshDeviceCount() {
+    try {
+      const res = await fetch('/api/devices/scale');
+      const data = await res.json();
+      mDevices.textContent = data.count;
+      document.getElementById('deviceCount').value = data.count;
+    } catch (e) { /* ignore */ }
+  }
+
+  document.getElementById('scaleBtn').addEventListener('click', async () => {
+    const count = document.getElementById('deviceCount').value;
+    const res = await fetch(`/api/devices/scale?count=${encodeURIComponent(count)}`, { method: 'PUT' });
+    const data = await res.json();
+    mDevices.textContent = data.count;
+  });
+
+  async function loadAnomalyHistory() {
+    try {
+      const res = await fetch('/api/anomalies/recent?limit=100');
+      const history = await res.json(); // 최신순으로 내려온다
+      // logAnomaly()는 prepend하므로, 오래된 것부터 넣어야 최종적으로 최신이 맨 위에 온다.
+      history.slice().reverse().forEach(h => logAnomaly({
+        deviceId: h.deviceId,
+        value: h.value,
+        zScore: h.zscore,
+        timestamp: h.detectedAt
+      }));
+      anomalyCount = history.length;
+      mAnomalies.textContent = anomalyCount;
+    } catch (e) { /* DB 조회 실패해도 대시보드 자체는 계속 동작해야 하므로 무시 */ }
+  }
+
+  refreshDeviceCount();
+  loadAnomalyHistory().then(connect);
+</script>
+
+</body>
+</html>

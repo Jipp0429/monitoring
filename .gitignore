@@ -1,0 +1,16 @@
+target/
+*.class
+
+data/
+*.mv.db
+*.trace.db
+
+.claude/
+scripts/*.csv
+scripts/*.log
+__pycache__/
+*.pyc
+
+.idea/
+*.iml
+.vscode/
