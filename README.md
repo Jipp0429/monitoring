@@ -46,6 +46,24 @@ mvn spring-boot:run
 | PUT | `/api/devices/scale?count=N` | 디바이스 수 변경 |
 | GET | `/api/anomalies/recent?limit=N` | 최근 이상치 이력 조회 (기본 50건) |
 | GET | `/api/anomalies/device/{deviceId}` | 특정 디바이스의 이상치 이력 조회 |
+| GET | `/actuator/metrics/{name}` | Micrometer 메트릭 조회 (아래 커스텀 메트릭 + JVM 기본 메트릭) |
+
+## 설정
+
+`application.yml`의 `monitor.simulator.*`, `monitor.detection.*`에서 재빌드 없이 튜닝 가능 (Z-score 임계값, warm-up 최소 표본 수, 시뮬레이터 베이스라인/이상치 확률, 싱크 버퍼 크기 등).
+
+## 메트릭
+
+`/actuator/metrics`로 노출되는 커스텀 메트릭:
+
+| 이름 | 설명 |
+|---|---|
+| `monitor.simulator.readings.emitted` | 시뮬레이터가 발행한 판독값 누적 수 |
+| `monitor.simulator.readings.dropped` | 싱크 버퍼 오버플로우로 드롭된 판독값 수 |
+| `monitor.simulator.device.count` | 현재 디바이스 수 (게이지) |
+| `monitor.detection.readings.evaluated` | AnomalyDetectorService가 평가한 판독값 누적 수 |
+| `monitor.detection.anomalies.total` | 탐지된 이상치 누적 수 |
+| `monitor.detection.results.dropped` | 결과 싱크 버퍼 오버플로우로 드롭된 수 |
 
 ## 테스트
 
