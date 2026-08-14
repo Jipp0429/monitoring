@@ -1,5 +1,6 @@
 package com.example.monitor.simulator;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import reactor.test.StepVerifier;
 
@@ -13,9 +14,13 @@ class DeviceSimulatorServiceTest {
         return new SimulatorProperties(50.0, 5.0, 0.03, 40.0, 100, 65536);
     }
 
+    private static DeviceSimulatorService newService(SimulatorProperties properties) {
+        return new DeviceSimulatorService(properties, new SimpleMeterRegistry());
+    }
+
     @Test
     void tickEmitsOneReadingPerActiveDevice() {
-        DeviceSimulatorService service = new DeviceSimulatorService(defaultProperties());
+        DeviceSimulatorService service = newService(defaultProperties());
         service.setDeviceCount(5);
 
         StepVerifier.create(service.readingsStream().take(5))
@@ -26,7 +31,7 @@ class DeviceSimulatorServiceTest {
 
     @Test
     void setDeviceCountClampsNegativeValuesToZero() {
-        DeviceSimulatorService service = new DeviceSimulatorService(defaultProperties());
+        DeviceSimulatorService service = newService(defaultProperties());
 
         assertThat(service.setDeviceCount(-10)).isZero();
         assertThat(service.getDeviceCount()).isZero();
@@ -34,7 +39,7 @@ class DeviceSimulatorServiceTest {
 
     @Test
     void setDeviceCountReturnsClampedValue() {
-        DeviceSimulatorService service = new DeviceSimulatorService(defaultProperties());
+        DeviceSimulatorService service = newService(defaultProperties());
 
         assertThat(service.setDeviceCount(250)).isEqualTo(250);
         assertThat(service.getDeviceCount()).isEqualTo(250);
@@ -42,7 +47,7 @@ class DeviceSimulatorServiceTest {
 
     @Test
     void tickWithZeroDevicesEmitsNothing() {
-        DeviceSimulatorService service = new DeviceSimulatorService(defaultProperties());
+        DeviceSimulatorService service = newService(defaultProperties());
         service.setDeviceCount(0);
 
         StepVerifier.create(service.readingsStream())

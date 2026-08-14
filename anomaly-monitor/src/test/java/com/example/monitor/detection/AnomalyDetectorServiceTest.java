@@ -5,6 +5,7 @@ import com.example.monitor.persistence.AnomalyEventRepository;
 import com.example.monitor.simulator.DeviceSimulatorService;
 import com.example.monitor.simulator.SensorReading;
 import com.example.monitor.simulator.SimulatorProperties;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.reactivestreams.Publisher;
@@ -40,14 +41,14 @@ class AnomalyDetectorServiceTest {
         repository = new RecordingAnomalyEventRepository();
 
         SimulatorProperties simulatorProperties = new SimulatorProperties(50.0, 5.0, 0.03, 40.0, 100, 65536);
-        DeviceSimulatorService fakeSimulator = new DeviceSimulatorService(simulatorProperties) {
+        DeviceSimulatorService fakeSimulator = new DeviceSimulatorService(simulatorProperties, new SimpleMeterRegistry()) {
             @Override
             public Flux<SensorReading> readingsStream() {
                 return upstream.asFlux();
             }
         };
 
-        service = new AnomalyDetectorService(DETECTION_PROPERTIES, fakeSimulator, repository);
+        service = new AnomalyDetectorService(DETECTION_PROPERTIES, fakeSimulator, repository, new SimpleMeterRegistry());
         service.subscribeToReadings();
     }
 

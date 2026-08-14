@@ -4,6 +4,8 @@ import com.example.monitor.persistence.AnomalyEventEntity;
 import com.example.monitor.persistence.AnomalyEventRepository;
 import com.example.monitor.simulator.DeviceSimulatorService;
 import com.example.monitor.simulator.SensorReading;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,14 +32,21 @@ public class AnomalyDetectorService {
     private final AnomalyEventRepository anomalyEventRepository;
     private final Map<String, WelfordStats> statsByDevice = new ConcurrentHashMap<>();
     private final Sinks.Many<AnomalyResult> sink;
+    private final Counter evaluatedCounter;
+    private final Counter anomalyCounter;
+    private final Counter resultsDroppedCounter;
 
     public AnomalyDetectorService(DetectionProperties properties,
                                    DeviceSimulatorService deviceSimulatorService,
-                                   AnomalyEventRepository anomalyEventRepository) {
+                                   AnomalyEventRepository anomalyEventRepository,
+                                   MeterRegistry meterRegistry) {
         this.properties = properties;
         this.deviceSimulatorService = deviceSimulatorService;
         this.anomalyEventRepository = anomalyEventRepository;
         this.sink = Sinks.many().multicast().onBackpressureBuffer(properties.sinkBufferSize(), false);
+        this.evaluatedCounter = meterRegistry.counter("monitor.detection.readings.evaluated");
+        this.anomalyCounter = meterRegistry.counter("monitor.detection.anomalies.total");
+        this.resultsDroppedCounter = meterRegistry.counter("monitor.detection.results.dropped");
     }
 
     @PostConstruct
@@ -50,6 +59,7 @@ public class AnomalyDetectorService {
     private void publish(AnomalyResult result) {
         Sinks.EmitResult emitResult = sink.tryEmitNext(result);
         if (emitResult.isFailure()) {
+            resultsDroppedCounter.increment();
             log.warn("results sink buffer overflow, dropped event for {}", result.deviceId());
         }
         if (result.anomaly()) {
@@ -58,6 +68,7 @@ public class AnomalyDetectorService {
     }
 
     private void handleAnomaly(AnomalyResult result) {
+        anomalyCounter.increment();
         log.warn("ANOMALY detected deviceId={} value={} mean={} stdDev={} zScore={} timestamp={}",
                 result.deviceId(), result.value(), result.mean(), result.stdDev(),
                 result.zScore(), result.timestamp());
@@ -74,6 +85,7 @@ public class AnomalyDetectorService {
     }
 
     private AnomalyResult evaluate(SensorReading reading) {
+        evaluatedCounter.increment();
         WelfordStats stats = statsByDevice.computeIfAbsent(reading.deviceId(), id -> new WelfordStats());
 
         double meanBefore;

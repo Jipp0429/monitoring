@@ -5,6 +5,12 @@ spring:
     init:
       mode: always
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+
 monitor:
   simulator:
     baseline-mean: 50.0

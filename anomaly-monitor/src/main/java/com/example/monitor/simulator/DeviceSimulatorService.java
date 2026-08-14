@@ -1,5 +1,7 @@
 package com.example.monitor.simulator;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -29,11 +31,16 @@ public class DeviceSimulatorService {
     private final AtomicInteger deviceCount;
 
     private final Sinks.Many<SensorReading> sink;
+    private final Counter emittedCounter;
+    private final Counter droppedCounter;
 
-    public DeviceSimulatorService(SimulatorProperties properties) {
+    public DeviceSimulatorService(SimulatorProperties properties, MeterRegistry meterRegistry) {
         this.properties = properties;
         this.deviceCount = new AtomicInteger(properties.initialDeviceCount());
         this.sink = Sinks.many().multicast().onBackpressureBuffer(properties.sinkBufferSize(), false);
+        this.emittedCounter = meterRegistry.counter("monitor.simulator.readings.emitted");
+        this.droppedCounter = meterRegistry.counter("monitor.simulator.readings.dropped");
+        meterRegistry.gauge("monitor.simulator.device.count", deviceCount);
     }
 
     public Flux<SensorReading> readingsStream() {
@@ -72,7 +79,9 @@ public class DeviceSimulatorService {
             }
         }
 
+        emittedCounter.increment(count - dropped);
         if (dropped > 0) {
+            droppedCounter.increment(dropped);
             log.warn("readings sink buffer overflow: {}/{} events dropped this tick", dropped, count);
         }
     }
