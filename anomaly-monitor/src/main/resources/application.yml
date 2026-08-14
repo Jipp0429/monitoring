@@ -4,3 +4,16 @@ spring:
   sql:
     init:
       mode: always
+
+monitor:
+  simulator:
+    baseline-mean: 50.0
+    baseline-std-dev: 5.0
+    anomaly-probability: 0.03      # 매 판독값이 이상치로 튈 확률
+    anomaly-magnitude: 40.0
+    initial-device-count: 100
+    sink-buffer-size: 65536        # 기본값(256)으로는 디바이스 수가 많을 때 이벤트가 드롭된다
+  detection:
+    z-score-threshold: 3.0
+    min-samples-for-detection: 10  # 이보다 표본이 적으면 warm-up으로 보고 이상치 판정을 보류한다
+    sink-buffer-size: 65536

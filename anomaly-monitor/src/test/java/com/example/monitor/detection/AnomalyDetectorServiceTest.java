@@ -4,6 +4,7 @@ import com.example.monitor.persistence.AnomalyEventEntity;
 import com.example.monitor.persistence.AnomalyEventRepository;
 import com.example.monitor.simulator.DeviceSimulatorService;
 import com.example.monitor.simulator.SensorReading;
+import com.example.monitor.simulator.SimulatorProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.reactivestreams.Publisher;
@@ -26,8 +27,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class AnomalyDetectorServiceTest {
 
-    // AnomalyDetectorService.MIN_SAMPLES_FOR_DETECTION과 동일한 값이어야 한다.
-    private static final int MIN_SAMPLES_FOR_DETECTION = 10;
+    private static final DetectionProperties DETECTION_PROPERTIES = new DetectionProperties(3.0, 10, 65536);
+    private static final int MIN_SAMPLES_FOR_DETECTION = (int) DETECTION_PROPERTIES.minSamplesForDetection();
 
     private Sinks.Many<SensorReading> upstream;
     private RecordingAnomalyEventRepository repository;
@@ -38,14 +39,15 @@ class AnomalyDetectorServiceTest {
         upstream = Sinks.many().multicast().onBackpressureBuffer();
         repository = new RecordingAnomalyEventRepository();
 
-        DeviceSimulatorService fakeSimulator = new DeviceSimulatorService() {
+        SimulatorProperties simulatorProperties = new SimulatorProperties(50.0, 5.0, 0.03, 40.0, 100, 65536);
+        DeviceSimulatorService fakeSimulator = new DeviceSimulatorService(simulatorProperties) {
             @Override
             public Flux<SensorReading> readingsStream() {
                 return upstream.asFlux();
             }
         };
 
-        service = new AnomalyDetectorService(fakeSimulator, repository);
+        service = new AnomalyDetectorService(DETECTION_PROPERTIES, fakeSimulator, repository);
         service.subscribeToReadings();
     }
 

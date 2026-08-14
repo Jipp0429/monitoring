@@ -9,9 +9,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class DeviceSimulatorServiceTest {
 
+    private static SimulatorProperties defaultProperties() {
+        return new SimulatorProperties(50.0, 5.0, 0.03, 40.0, 100, 65536);
+    }
+
     @Test
     void tickEmitsOneReadingPerActiveDevice() {
-        DeviceSimulatorService service = new DeviceSimulatorService();
+        DeviceSimulatorService service = new DeviceSimulatorService(defaultProperties());
         service.setDeviceCount(5);
 
         StepVerifier.create(service.readingsStream().take(5))
@@ -22,7 +26,7 @@ class DeviceSimulatorServiceTest {
 
     @Test
     void setDeviceCountClampsNegativeValuesToZero() {
-        DeviceSimulatorService service = new DeviceSimulatorService();
+        DeviceSimulatorService service = new DeviceSimulatorService(defaultProperties());
 
         assertThat(service.setDeviceCount(-10)).isZero();
         assertThat(service.getDeviceCount()).isZero();
@@ -30,7 +34,7 @@ class DeviceSimulatorServiceTest {
 
     @Test
     void setDeviceCountReturnsClampedValue() {
-        DeviceSimulatorService service = new DeviceSimulatorService();
+        DeviceSimulatorService service = new DeviceSimulatorService(defaultProperties());
 
         assertThat(service.setDeviceCount(250)).isEqualTo(250);
         assertThat(service.getDeviceCount()).isEqualTo(250);
@@ -38,7 +42,7 @@ class DeviceSimulatorServiceTest {
 
     @Test
     void tickWithZeroDevicesEmitsNothing() {
-        DeviceSimulatorService service = new DeviceSimulatorService();
+        DeviceSimulatorService service = new DeviceSimulatorService(defaultProperties());
         service.setDeviceCount(0);
 
         StepVerifier.create(service.readingsStream())

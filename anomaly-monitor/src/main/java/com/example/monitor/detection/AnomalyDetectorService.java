@@ -25,23 +25,19 @@ public class AnomalyDetectorService {
 
     private static final Logger log = LoggerFactory.getLogger(AnomalyDetectorService.class);
 
-    private static final double Z_SCORE_THRESHOLD = 3.0;
-    // 표본이 너무 적으면 mean/stdDev 자체가 불안정해서 정상 범위 값도 이상치로 오판되기 쉽다.
-    // 디바이스가 새로 추가된 직후(warm-up 구간)에 이런 오탐이 몰리므로 최소 표본 수를 두고 그 전엔 판정을 보류한다.
-    private static final long MIN_SAMPLES_FOR_DETECTION = 10;
-    // DeviceSimulatorService와 동일한 이유로 기본 버퍼(256)보다 넉넉하게 잡는다.
-    private static final int SINK_BUFFER_SIZE = 65536;
-
+    private final DetectionProperties properties;
     private final DeviceSimulatorService deviceSimulatorService;
     private final AnomalyEventRepository anomalyEventRepository;
     private final Map<String, WelfordStats> statsByDevice = new ConcurrentHashMap<>();
-    private final Sinks.Many<AnomalyResult> sink =
-            Sinks.many().multicast().onBackpressureBuffer(SINK_BUFFER_SIZE, false);
+    private final Sinks.Many<AnomalyResult> sink;
 
-    public AnomalyDetectorService(DeviceSimulatorService deviceSimulatorService,
+    public AnomalyDetectorService(DetectionProperties properties,
+                                   DeviceSimulatorService deviceSimulatorService,
                                    AnomalyEventRepository anomalyEventRepository) {
+        this.properties = properties;
         this.deviceSimulatorService = deviceSimulatorService;
         this.anomalyEventRepository = anomalyEventRepository;
+        this.sink = Sinks.many().multicast().onBackpressureBuffer(properties.sinkBufferSize(), false);
     }
 
     @PostConstruct
@@ -92,7 +88,8 @@ public class AnomalyDetectorService {
             countAfter = stats.getCount();
         }
 
-        boolean anomaly = countAfter >= MIN_SAMPLES_FOR_DETECTION && Math.abs(zScore) > Z_SCORE_THRESHOLD;
+        boolean anomaly = countAfter >= properties.minSamplesForDetection()
+                && Math.abs(zScore) > properties.zScoreThreshold();
 
         return new AnomalyResult(
                 reading.deviceId(),
