@@ -23,4 +23,3 @@ monitor:
   detection:
     z-score-threshold: 3.0
     min-samples-for-detection: 10  # 이보다 표본이 적으면 warm-up으로 보고 이상치 판정을 보류한다
-    sink-buffer-size: 65536

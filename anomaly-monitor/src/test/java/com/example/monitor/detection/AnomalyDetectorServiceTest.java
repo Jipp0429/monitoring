@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class AnomalyDetectorServiceTest {
 
-    private static final DetectionProperties DETECTION_PROPERTIES = new DetectionProperties(3.0, 10, 65536);
+    private static final DetectionProperties DETECTION_PROPERTIES = new DetectionProperties(3.0, 10);
     private static final int MIN_SAMPLES_FOR_DETECTION = (int) DETECTION_PROPERTIES.minSamplesForDetection();
 
     private Sinks.Many<SensorReading> upstream;
