@@ -66,7 +66,7 @@ def measure_throughput(base_url: str, duration_s: float):
     anomaly_count = 0
     deadline = time.monotonic() + duration_s
 
-    with urllib.request.urlopen(req, timeout=2) as resp:
+    with urllib.request.urlopen(req, timeout=5) as resp:
         while time.monotonic() < deadline:
             try:
                 raw_line = resp.readline()
