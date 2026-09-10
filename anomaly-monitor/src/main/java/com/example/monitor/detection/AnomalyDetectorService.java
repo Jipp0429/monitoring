@@ -43,10 +43,6 @@ public class AnomalyDetectorService {
         this.properties = properties;
         this.deviceSimulatorService = deviceSimulatorService;
         this.anomalyEventRepository = anomalyEventRepository;
-        // SSE로 나가는 "지금 상태" 스트림이라 구독자가 없던 동안의 과거분을 쌓아둘 이유가 없다.
-        // onBackpressureBuffer는 autoCancel=false와 맞물려 구독자가 없을 때도 계속 버퍼링하다가,
-        // 새 클라이언트가 붙는 순간 쌓인 옛날 이벤트를 한꺼번에 쏟아내는 버그가 있었다(대시보드 "초당 이벤트" 폭주).
-        // directBestEffort는 버퍼링 없이 그 순간 받을 준비가 된 구독자에게만 전달하고, 없으면 그냥 흘려보낸다.
         this.sink = Sinks.many().multicast().directBestEffort();
         this.evaluatedCounter = meterRegistry.counter("monitor.detection.readings.evaluated");
         this.anomalyCounter = meterRegistry.counter("monitor.detection.anomalies.total");
@@ -62,8 +58,6 @@ public class AnomalyDetectorService {
 
     private void publish(AnomalyResult result) {
         Sinks.EmitResult emitResult = sink.tryEmitNext(result);
-        // 구독자가 아예 없는 건(대시보드를 아무도 안 보고 있음) 정상 상태이지 드롭이 아니다.
-        // 그 외 실패(느린 구독자가 못 받아간 경우 등)만 진짜 드롭으로 집계한다.
         if (emitResult.isFailure() && emitResult != Sinks.EmitResult.FAIL_ZERO_SUBSCRIBER) {
             resultsDroppedCounter.increment();
             log.warn("results sink emit failed ({}), dropped event for {}", emitResult, result.deviceId());
@@ -83,7 +77,6 @@ public class AnomalyDetectorService {
                 result.deviceId(), result.value(), result.mean(), result.stdDev(),
                 result.zScore(), result.timestamp());
 
-        // 저장은 fire-and-forget으로: 이상치 처리 흐름이 DB 쓰기 지연 때문에 막히면 안 된다.
         anomalyEventRepository.save(entity).subscribe(
                 saved -> { },
                 error -> log.error("failed to persist anomaly event for {}", result.deviceId(), error)
