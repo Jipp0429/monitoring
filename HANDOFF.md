@@ -24,7 +24,7 @@
 
 - **서버 실행**: `cd anomaly-monitor && mvn spring-boot:run` (기본 포트 8080). H2 DB는 `anomaly-monitor/data/`에 파일로 남음(gitignore됨, clone 후에는 빈 상태로 새로 시작).
 - **부하 테스트**: `python scripts/load_test.py --stages 100,1000,5000` (표준 라이브러리만 사용, 의존성 없음).
-- **논문 차트/다이어그램 재생성 스크립트**는 저장소에는 없고 세션 스크래치패드에만 있었음 — 필요하면 `docs/` 안의 PNG를 직접 재사용하거나, 다시 요청해서 만들어야 함.
+- **논문 차트/다이어그램 재생성 스크립트**는 `scripts/`에 있음 (`render_architecture.py`, `render_git_log.py`, `render_load_test_chart.py`, `build_paper_docx.py`). 전부 실행 위치 무관하게 동작하고(스크립트 파일 기준 상대 경로), `docs/`에 결과물을 씀. `matplotlib`·`python-docx` 설치 필요(`pip install matplotlib python-docx`).
 - **개발/실험 환경은 Java 25 JDK**였음(빌드 타깃은 pom.xml상 Java 21). Java 25에서 Mockito/Byte Buddy가 정상 동작하지 않아 테스트는 전부 Mockito 없이 손으로 만든 fake로 작성됨 — 새 환경이 다른 JDK라면 이 이슈가 재현 안 될 수도 있음.
 - 최종보고서(hwp)에 있는 수치(100.1 → 974.9 → 4,975.7 events/sec 등)와 논문 초안의 수치는 의도적으로 통일되어 있음. 이후 코드를 더 고치면(특히 `directBestEffort` 관련 sink) 이 수치들이 실제와 안 맞을 수 있으니, 재측정 없이 논문 수치만 먼저 건드리지 말 것.
 
@@ -38,5 +38,5 @@
 - 논문 초안: `docs/paper_draft.md`, `docs/paper_draft.docx`
 - 아키텍처 다이어그램: `docs/architecture_diagram.png`
 - Git 커밋 이력 그림: `docs/git_log.png`
-- 부하 테스트 차트: `scripts/load_test_results.png` (gitignore 대상이라 저장소엔 없을 수 있음 — `python scripts/render_load_test_chart.py`로 재생성 가능, `matplotlib` 필요)
+- 부하 테스트 차트: `docs/load_test_results.png` (`python scripts/render_load_test_chart.py`로 재생성 가능 — 단, 재생성하려면 `scripts/load_test_results.csv`가 먼저 있어야 하므로 `python scripts/load_test.py --stages 100,1000,5000`로 새로 측정부터 해야 함)
 - 최종보고서 원본: 사용자 로컬 Downloads 폴더 (저장소에는 미포함)
