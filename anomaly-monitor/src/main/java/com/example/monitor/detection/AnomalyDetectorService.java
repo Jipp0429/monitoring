@@ -43,7 +43,10 @@ public class AnomalyDetectorService {
         this.properties = properties;
         this.deviceSimulatorService = deviceSimulatorService;
         this.anomalyEventRepository = anomalyEventRepository;
-        this.sink = Sinks.many().multicast().directBestEffort();
+        // directBestEffort(무버퍼)는 재연결 시 묵은 이벤트가 몰리는 문제는 없앴지만, 한 tick 안의 동기적
+        // burst를 못 받아내 활성 구독자에게도 이벤트가 유실되는 부작용이 있었다(5,000대 기준 약 50% 유실 확인).
+        // maxDeviceCount 수준의 작은 버퍼로 되돌려서, burst는 흡수하되 유휴 적체 규모는 이 크기로 제한한다.
+        this.sink = Sinks.many().multicast().onBackpressureBuffer(properties.resultsBufferSize(), false);
         this.evaluatedCounter = meterRegistry.counter("monitor.detection.readings.evaluated");
         this.anomalyCounter = meterRegistry.counter("monitor.detection.anomalies.total");
         this.resultsDroppedCounter = meterRegistry.counter("monitor.detection.results.dropped");
@@ -58,9 +61,9 @@ public class AnomalyDetectorService {
 
     private void publish(AnomalyResult result) {
         Sinks.EmitResult emitResult = sink.tryEmitNext(result);
-        if (emitResult.isFailure() && emitResult != Sinks.EmitResult.FAIL_ZERO_SUBSCRIBER) {
+        if (emitResult.isFailure()) {
             resultsDroppedCounter.increment();
-            log.warn("results sink emit failed ({}), dropped event for {}", emitResult, result.deviceId());
+            log.warn("results sink buffer overflow ({}), dropped event for {}", emitResult, result.deviceId());
         }
         if (result.anomaly()) {
             handleAnomaly(result);

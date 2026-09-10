@@ -54,20 +54,31 @@ def scale_devices(base_url: str, count: int):
     return status, actual, elapsed_ms
 
 
-def measure_throughput(base_url: str, duration_s: float):
+def measure_throughput(base_url: str, warmup_s: float, duration_s: float):
     """
-    지정된 시간 동안 /api/stream/readings SSE를 구독하며
-    (총 이벤트 수, 이상치 수)를 센다.
+    /api/stream/readings SSE에 연결한 채로 warmup_s 동안은 수신 이벤트를 세지 않고 버려서
+    (재연결 사이에 쌓였을 수 있는 backlog를 흘려보냄), 그 다음 duration_s 동안만 실제로
+    이벤트 수·이상치 수를 센다. 연결을 처음부터 끝까지 하나로 유지해야 한다 — settle 구간에서
+    연결을 아예 안 하고 있다가 나중에 새로 연결하면, 그 사이 쌓인 backlog가 측정 구간 앞부분에
+    한꺼번에 흘러들어와 처리량이 실제보다 부풀려진다(관측됨: 100대 단계에서 3376.9 events/sec로
+    측정된 사례 — 직전 5,000대 상태에서 쌓인 backlog가 섞여 들어간 것).
     """
     url = f"{base_url}/api/stream/readings"
     req = urllib.request.Request(url, headers={"Accept": "text/event-stream"})
 
     event_count = 0
     anomaly_count = 0
-    deadline = time.monotonic() + duration_s
 
     with urllib.request.urlopen(req, timeout=5) as resp:
-        while time.monotonic() < deadline:
+        warmup_deadline = time.monotonic() + warmup_s
+        while time.monotonic() < warmup_deadline:
+            try:
+                resp.readline()
+            except (socket.timeout, TimeoutError):
+                continue
+
+        measure_deadline = time.monotonic() + duration_s
+        while time.monotonic() < measure_deadline:
             try:
                 raw_line = resp.readline()
             except (socket.timeout, TimeoutError):
@@ -91,11 +102,9 @@ def run_stage(base_url: str, target_count: int, settle_s: float, measure_s: floa
     status, actual_count, scale_ms = scale_devices(base_url, target_count)
     print(f"  scale 호출: status={status} actual_count={actual_count} 응답시간={scale_ms:.1f}ms")
 
-    print(f"  안정화 대기 {settle_s:.1f}초...")
-    time.sleep(settle_s)
-
+    print(f"  SSE 연결 유지한 채 안정화 {settle_s:.1f}초 (backlog 비우는 중)...")
     print(f"  처리량 측정 중 ({measure_s:.1f}초)...")
-    event_count, anomaly_count = measure_throughput(base_url, measure_s)
+    event_count, anomaly_count = measure_throughput(base_url, settle_s, measure_s)
     throughput = event_count / measure_s if measure_s > 0 else 0.0
 
     print(f"  결과: events={event_count} anomalies={anomaly_count} throughput={throughput:.1f} events/sec")
