@@ -1,10 +1,18 @@
-"""부하 테스트 결과(load_test_results.csv)를 보고서용 PNG 이미지로 렌더링한다."""
+"""부하 테스트 결과(load_test_results.csv)를 보고서용 PNG 이미지로 렌더링한다.
+
+실행 위치는 무관(이 파일 기준 상대 경로)."""
 
 import csv
+from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+CSV_PATH = SCRIPT_DIR / "load_test_results.csv"
+OUT_PATH = REPO_ROOT / "docs" / "load_test_results.png"
 
 # --- 팔레트 (dataviz 스킬 reference/palette.md, light mode) ---
 SURFACE = "#fcfcfb"
@@ -19,7 +27,7 @@ SERIES_1 = "#2a78d6"  # categorical slot 1 (blue)
 plt.rcParams["font.family"] = ["Malgun Gothic", "sans-serif"]
 plt.rcParams["axes.unicode_minus"] = False
 
-with open("scripts/load_test_results.csv", encoding="utf-8") as f:
+with open(CSV_PATH, encoding="utf-8") as f:
     rows = list(csv.DictReader(f))
 
 labels = [f"{int(r['target_device_count']):,}대" for r in rows]
@@ -93,6 +101,5 @@ for (row, col), cell in table.get_celld().items():
 
 fig.text(0.10, 0.335, "측정값 상세", fontsize=12, fontweight="bold", color=INK_PRIMARY)
 
-out_path = "scripts/load_test_results.png"
-fig.savefig(out_path, facecolor=fig.get_facecolor())
-print(f"saved: {out_path}")
+fig.savefig(OUT_PATH, facecolor=fig.get_facecolor())
+print(f"saved: {OUT_PATH}")
