@@ -64,7 +64,7 @@ sim = box(0.4, 4.0, 2.7, 2.0, "DeviceSimulatorService",
 
 # 2) AnomalyDetectorService
 det = box(3.9, 4.0, 3.0, 2.0, "AnomalyDetectorService",
-          ["WelfordStats (디바이스별)", "Z-score 계산 · warm-up", "Sinks.Many (directBestEffort)"],
+          ["WelfordStats (디바이스별)", "Z-score 계산 · warm-up", "Sinks.Many (buffer 20000)"],
           ORANGE)
 
 # 3) AnomalyEventRepository
